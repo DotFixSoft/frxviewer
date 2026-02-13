@@ -201,7 +201,7 @@ Initial release
 
 ## License
 
-This project is licensed under the MIT License - see the [DotFix_Software_Plugin_License.txt](LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE](DotFix_Software_Plugin_License.txt) file for details.
 
 ### Attribution Requirement
 
@@ -219,3 +219,4 @@ GitHub: https://github.com/DotFixSoft
 
 
 ⭐ If you find this plugin useful, please consider starring the repository!
+
