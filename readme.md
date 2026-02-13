@@ -49,6 +49,7 @@ C:\Program Files (x86)\VB Decompiler\plugins\
 
 ### Interface Layout
 
+```
 ┌─────────────────────────────────────────────┐
 │ FRX Image Viewer                            │
 ├──────────┬──────────────────────────────────┤
@@ -62,7 +63,7 @@ C:\Program Files (x86)\VB Decompiler\plugins\
 ├─────────────────────────────────────────────┤
 │ Status: Image 5: 32x32px | Size: 1.2KB ...  │
 └─────────────────────────────────────────────┘
-
+```
 
 ### Extracting Images
 
@@ -214,5 +215,6 @@ If you modify or redistribute this plugin, you MUST:
 
 Sergey Chubchenko (DotFix Software)
 GitHub: https://github.com/DotFixSoft
+
 
 ⭐ If you find this plugin useful, please consider starring the repository!
