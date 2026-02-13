@@ -1,10 +1,10 @@
 # FRX Image Viewer Plugin for VB Decompiler
 
-A native Delphi plugin for VB Decompiler that provides advanced viewing and extraction capabilities for embedded FRX resources (images, icons, and cursors) found in Visual Basic 5.0/6.0 applications.
+A native Delphi plugin for [**VB Decompiler**](https://www.vb-decompiler.org) that provides advanced viewing and extraction capabilities for embedded FRX resources (images, icons, and cursors) found in Visual Basic 5.0/6.0 applications.
 
 ## Overview
 
-When decompiling Visual Basic 6 applications, FRX files contain valuable embedded resources such as form images, icons, buttons, and cursors. While VB Decompiler can detect these resources, extracting and viewing them traditionally requires manual hex editing or external tools. This plugin solves that problem by providing an integrated, user-friendly interface directly within VB Decompiler.
+When decompiling Visual Basic 6 applications, FRX files contain valuable embedded resources such as form images, icons, buttons, and cursors. While [**VB Decompiler**](https://www.vb-decompiler.org) can detect these resources, extracting and viewing them traditionally requires manual hex editing or external tools. This plugin solves that problem by providing an integrated, user-friendly interface directly within VB Decompiler.
 
 ## Key Features
 
@@ -43,7 +43,7 @@ C:\Program Files (x86)\VB Decompiler\plugins\
 
 ### Viewing FRX Resources
 
-1. Open a Visual Basic 6 compiled executable (.exe) in VB Decompiler
+1. Open a Visual Basic 6 compiled executable (.exe) in [**VB Decompiler**](https://www.vb-decompiler.org)
 2. Navigate to **Plugins → FRX Image Viewer** in the main menu
 3. The plugin window will open, automatically scanning for embedded FRX resources
 
@@ -125,6 +125,7 @@ The plugin implements a manual dark theme without relying on VCL Styles to ensur
 
 ### Project Structure
 
+```
 FRXViewer/
 ├── FRXViewer.dpr # Main DLL entry point
 ├── fmMain.pas # Main form implementation
@@ -132,7 +133,7 @@ FRXViewer/
 ├── PluginSDK.pas # VB Decompiler SDK interface
 ├── DotFix_Software_Plugin_License.txt # License
 └── README.md # This file
-
+```
 
 ### Plugin SDK Integration
 
@@ -200,7 +201,7 @@ Initial release
 
 ## License
 
-This project is licensed under the MIT License - see the [DOTFIX_LICENSE.TXT](LICENSE) file for details.
+This project is licensed under the MIT License - see the [DotFix_Software_Plugin_License.txt](LICENSE) file for details.
 
 ### Attribution Requirement
 
