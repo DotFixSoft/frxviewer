@@ -75,7 +75,10 @@ begin
     // Create form each time
     LocalForm := TfrmMain.Create(Application);
     try
-      LocalForm.ShowModal;
+      if GetInteger(GetFrxIconCount) > 0 then
+        LocalForm.ShowModal
+      else
+        MessageBox(VBDecompilerHWND, 'No FRX icons found.', 'FRX Image Viewer', MB_ICONINFORMATION);
     finally
       LocalForm.Free;
     end;

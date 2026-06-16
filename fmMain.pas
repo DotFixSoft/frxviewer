@@ -51,7 +51,7 @@ type
     FCurrentFormat: string;
     FUseDarkMode: Boolean;
     procedure LoadImages;
-    function DetectAndLoadImage(Stream: TStream; DestBitmap: TBitmap): Boolean;
+    function DetectAndLoadImage(Stream: TMemoryStream; DestBitmap: TBitmap): Boolean;
     procedure ScaleImageToPreview(SourceGraphic: TGraphic; IsIcon: Boolean);
     function LoadBestIconFromStream(Stream: TStream; Icon: TIcon): Boolean;
     function DetectImageFormat(const Header: array of Byte): string;
@@ -250,7 +250,10 @@ begin
 end;
 
 procedure TfrmMain.FormShow(Sender: TObject);
+const
+  CM_MODALRESULT = $0005;
 begin
+  inherited;
   if not FImagesLoaded then
   begin
     FSourceFile := GetString(GetFileName);
@@ -278,21 +281,12 @@ var
   Item: TListItem;
   IconIdx: Integer;
 begin
-  Count := GetInteger(GetFrxIconCount);
-  if Count <= 0 then
-  begin
-    ShowMessage('No FRX icons found.');
-    Application.Terminate;
-    Exit;
-  end;
-
   try
     FileStream := TFileStream.Create(FSourceFile, fmOpenRead or fmShareDenyNone);
   except
     on E: Exception do
     begin
       ShowMessage('Cannot open source file: ' + FSourceFile + sLineBreak + E.Message);
-      Application.Terminate;
       Exit;
     end;
   end;
@@ -302,6 +296,7 @@ begin
     Bmp := TBitmap.Create;
     try
       lvImages.Items.BeginUpdate;
+      Count := GetInteger(GetFrxIconCount);
       try
         for I := 0 to Count - 1 do
         begin
@@ -335,7 +330,7 @@ begin
   end;
 end;
 
-function TfrmMain.DetectAndLoadImage(Stream: TStream; DestBitmap: TBitmap): Boolean;
+function TfrmMain.DetectAndLoadImage(Stream: TMemoryStream; DestBitmap: TBitmap): Boolean;
 var
   StartPos: Int64;
   Header: array[0..7] of Byte;
