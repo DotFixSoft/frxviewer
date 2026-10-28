@@ -1,8 +1,9 @@
-{
-    FRXViewer Plugin for VB Decompiler
+﻿{
+    FRXViewer Plugin for VB Decompiler and DE Decompiler
     Copyright (c) 2001 - 2026 Sergey Chubchenko (DotFix Software). All rights reserved.
 
-    Website: https://www.vb-decompiler.org
+    VB Decompiler: https://www.vb-decompiler.org
+    DE Decompiler: https://www.de-decompiler.com
     Support: admin@vb-decompiler.org
 
     License:
@@ -64,6 +65,8 @@ const
   GetFrxIconCount = 60;           // (v5.0+)
   GetFrxIconOffset = 61;          // (v5.0+)
   GetFrxIconSize = 62;            // (v5.0+)
+  GetFrxImageListInfo = 63;       // Optional IL1 metadata; empty on older hosts.
+  GetProductName = 64;           // Loaded product name; empty on older hosts.
   GetModuleFunctionDisasm = 70;   // (v9.4+)
   SetModuleFunctionDisasm = 71;   // (v9.4+)
   UpdateAll = 100;
@@ -77,6 +80,7 @@ var
 function GetString(vlType: Integer; vlNumber: Integer = 0; vlFnNumber: Integer = 0): string;
 function GetInteger(vlType: Integer; vlNumber: Integer = 0; vlFnNumber: Integer = 0): Int64;
 procedure SetString(vlType: Integer; const vlNewValue: string; vlNumber: Integer = 0; vlFnNumber: Integer = 0);
+function DecompilerProductName: string;
 
 implementation
 
@@ -105,6 +109,13 @@ begin
     Exit(0);
   if not TryStrToInt64(S, Result) then
     Result := 0;
+end;
+
+function DecompilerProductName: string;
+begin
+  Result := GetString(GetProductName);
+  if (Result <> 'VB Decompiler') and (Result <> 'DE Decompiler') then
+    Result := 'VB Decompiler'; // Hosts predating command 64 use the original product name.
 end;
 
 procedure SetString(vlType: Integer; const vlNewValue: string; vlNumber: Integer; vlFnNumber: Integer);

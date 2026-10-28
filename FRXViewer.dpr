@@ -1,8 +1,9 @@
 ﻿{
-    FRXViewer Plugin for VB Decompiler
+    FRXViewer Plugin for VB Decompiler and DE Decompiler
     Copyright (c) 2001 - 2026 Sergey Chubchenko (DotFix Software). All rights reserved.
 
-    Website: https://www.vb-decompiler.org
+    VB Decompiler: https://www.vb-decompiler.org
+    DE Decompiler: https://www.de-decompiler.com
     Support: admin@vb-decompiler.org
 
     License:
@@ -22,6 +23,7 @@ uses
   Vcl.Forms,
   System.IOUtils,
   PluginSDK in 'PluginSDK.pas',
+  modFrxImageList in 'modFrxImageList.pas',
   fmMain in 'fmMain.pas' {frmMain};
 
 {$R *.res}
@@ -59,7 +61,7 @@ begin
     SourceFile := GetString(GetFileName);
     if SourceFile = '' then
     begin
-      MessageBox(VBDecompilerHWND, 'No file loaded in VB Decompiler.', 'Plugin Error', MB_ICONERROR);
+      MessageBox(VBDecompilerHWND, PChar(Format('No file loaded in %s.', [DecompilerProductName])), 'Plugin Error', MB_ICONERROR);
       Exit;
     end;
 

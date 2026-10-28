@@ -1,8 +1,9 @@
 ﻿{
-    FRXViewer Plugin for VB Decompiler
+    FRXViewer Plugin for VB Decompiler and DE Decompiler
     Copyright (c) 2001 - 2026 Sergey Chubchenko (DotFix Software). All rights reserved.
 
-    Website: https://www.vb-decompiler.org
+    VB Decompiler: https://www.vb-decompiler.org
+    DE Decompiler: https://www.de-decompiler.com
     Support: admin@vb-decompiler.org
 
     License:
@@ -18,7 +19,7 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes,
   Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ExtCtrls,
-  Vcl.ComCtrls, Vcl.ImgList, PluginSDK,
+  Vcl.ComCtrls, Vcl.ImgList, PluginSDK, modFrxImageList, System.Generics.Collections,
   Vcl.Imaging.pngimage, Vcl.Imaging.jpeg, Vcl.Imaging.GIFImg,
   System.IOUtils, System.Math, System.StrUtils,
   System.Win.Registry, System.IniFiles,
@@ -49,8 +50,11 @@ type
     FCurrentOffset: Int64;
     FCurrentSize: Int64;
     FCurrentFormat: string;
+    FCurrentImageListIndex: Integer;
+    FCurrentImageListInfo: string;
     FUseDarkMode: Boolean;
     procedure LoadImages;
+    procedure PreviewImageList(Item: TListItem);
     function DetectAndLoadImage(Stream: TMemoryStream; DestBitmap: TBitmap): Boolean;
     procedure ScaleImageToPreview(SourceGraphic: TGraphic; IsIcon: Boolean);
     function LoadBestIconFromStream(Stream: TStream; Icon: TIcon): Boolean;
@@ -58,6 +62,7 @@ type
     function ShouldUseDarkMode: Boolean;
     function GetBackgroundColor: TColor;
   public
+    procedure SaveCurrentImage(const FileName: string);
   end;
 
 var
@@ -97,6 +102,7 @@ begin
 
   // Initialize current values
   FCurrentIndex := -1;
+  FCurrentImageListIndex := -1;
   FCurrentOffset := 0;
   FCurrentSize := 0;
   FCurrentFormat := '';
@@ -147,6 +153,9 @@ begin
   // StatusBar initialization
   SetStatusText('Active image', 0);
   SetStatusText('');
+
+  // Set text
+  lblTitle.Caption := 'FRX Images from ' + DecompilerProductName;
 end;
 
 procedure TfrmMain.StatusBarDrawPanel(StatusBar: TStatusBar; Panel: TStatusPanel; const Rect: TRect);
@@ -273,61 +282,86 @@ end;
 procedure TfrmMain.LoadImages;
 var
   Count: Int64;
-  I: Integer;
+  I, J, IconIdx: Integer;
   Offset, Size: Int64;
   FileStream: TFileStream;
   MemStream: TMemoryStream;
   Bmp: TBitmap;
   Item: TListItem;
-  IconIdx: Integer;
+  Metadata: TArray<string>;
+  Info: TFrxImageListInfo;
+  Masks: TDictionary<Int64, Boolean>;
+  Images: TFrxImageList;
+  Icon: TIcon;
+
+  procedure AddImage(const Caption: string; SourceIndex, TileIndex: Integer; const InfoText: string);
+  begin
+    MemStream.Position := 0;
+    if not DetectAndLoadImage(MemStream, Bmp) then Exit;
+    IconIdx := lvImages.LargeImages.Add(Bmp, nil);
+    Item := lvImages.Items.Add;
+    Item.Caption := Caption; Item.ImageIndex := IconIdx; Item.Data := Pointer(SourceIndex);
+    if TileIndex >= 0 then begin
+      Item.SubItems.Add(IntToStr(TileIndex)); Item.SubItems.Add(InfoText);
+    end;
+  end;
+
 begin
   try
     FileStream := TFileStream.Create(FSourceFile, fmOpenRead or fmShareDenyNone);
   except
-    on E: Exception do
-    begin
+    on E: Exception do begin
       ShowMessage('Cannot open source file: ' + FSourceFile + sLineBreak + E.Message);
       Exit;
     end;
   end;
-
   try
     MemStream := TMemoryStream.Create;
     Bmp := TBitmap.Create;
+    Masks := TDictionary<Int64, Boolean>.Create;
     try
       lvImages.Items.BeginUpdate;
-      Count := GetInteger(GetFrxIconCount);
       try
-        for I := 0 to Count - 1 do
-        begin
+        Count := GetInteger(GetFrxIconCount);
+        if (Count < 0) or (Count > High(Integer)) then raise EReadError.Create('Invalid image count');
+        SetLength(Metadata, Integer(Count));
+        // Query all lists first so their one-bit masks are not shown as extra icons.
+        for I := 0 to Integer(Count) - 1 do begin
+          Metadata[I] := GetString(GetFrxImageListInfo, I);
+          if ParseFrxImageListInfo(Metadata[I], Info) and ((Info.Flags and 1) <> 0) then
+            Masks.AddOrSetValue(Info.MaskOffset, True);
+        end;
+        for I := 0 to Integer(Count) - 1 do begin
           Offset := GetInteger(GetFrxIconOffset, I);
           Size := GetInteger(GetFrxIconSize, I);
-          if (Size > 8) and (Offset > 0) and (Offset + Size <= FileStream.Size) then
-          begin
+          if (Size <= 8) or (Offset <= 0) or (Offset > FileStream.Size) or
+            (Size > FileStream.Size - Offset) then Continue;
+          if Masks.ContainsKey(Offset + 8) then Continue;
+          Images := nil;
+          if ParseFrxImageListInfo(Metadata[I], Info) then begin
+            try Images := TFrxImageList.Create(FileStream, Offset + 8, Size - 8, Info);
+            except on E: Exception do SetStatusText('Cannot decode ImageList: ' + E.Message); end;
+          end;
+          if Images <> nil then begin
+            try
+              for J := 0 to Images.Count - 1 do begin
+                Icon := Images.Icon(J);
+                try
+                  MemStream.Clear; Icon.SaveToStream(MemStream);
+                  AddImage(Format('%d [%d]', [I, J]), I, J, Metadata[I]);
+                finally Icon.Free; end;
+              end;
+            finally Images.Free; end;
+          end else begin
+            // Old hosts return no metadata: preserve the existing range reader.
             FileStream.Position := Offset + 8;
-            MemStream.Clear;
-            MemStream.CopyFrom(FileStream, Size - 8);
-            MemStream.Position := 0;
-            if DetectAndLoadImage(MemStream, Bmp) then
-            begin
-              IconIdx := lvImages.LargeImages.Add(Bmp, nil);
-              Item := lvImages.Items.Add;
-              Item.Caption := Format('%d (%d)', [I, Offset]);
-              Item.ImageIndex := IconIdx;
-              Item.Data := Pointer(I);
-            end;
+            MemStream.Clear; MemStream.CopyFrom(FileStream, Size - 8);
+            AddImage(Format('%d (%d)', [I, Offset]), I, -1, '');
           end;
         end;
-      finally
-        lvImages.Items.EndUpdate;
-      end;
-    finally
-      Bmp.Free;
-      MemStream.Free;
-    end;
-  finally
-    FileStream.Free;
-  end;
+      finally lvImages.Items.EndUpdate; end;
+    finally Masks.Free; Bmp.Free; MemStream.Free; end;
+  finally FileStream.Free; end;
 end;
 
 function TfrmMain.DetectAndLoadImage(Stream: TMemoryStream; DestBitmap: TBitmap): Boolean;
@@ -527,6 +561,38 @@ begin
   end;
 end;
 
+procedure TfrmMain.PreviewImageList(Item: TListItem);
+var
+  SourceIndex, TileIndex: Integer;
+  Offset, Size: Int64;
+  Info: TFrxImageListInfo;
+  Stream: TFileStream;
+  Images: TFrxImageList;
+  Icon: TIcon;
+begin
+  if not ParseFrxImageListInfo(Item.SubItems[1], Info) or
+    not TryStrToInt(Item.SubItems[0], TileIndex) then Exit;
+  SourceIndex := Integer(Item.Data);
+  Offset := GetInteger(GetFrxIconOffset, SourceIndex) + 8;
+  Size := GetInteger(GetFrxIconSize, SourceIndex) - 8;
+  Stream := TFileStream.Create(FSourceFile, fmOpenRead or fmShareDenyNone);
+  try
+    Images := TFrxImageList.Create(Stream, Offset, Size, Info);
+    try
+      Icon := Images.Icon(TileIndex);
+      try
+        ScaleImageToPreview(Icon, True);
+        FCurrentIndex := SourceIndex; FCurrentImageListIndex := TileIndex;
+        FCurrentImageListInfo := Item.SubItems[1];
+        FCurrentOffset := Offset; FCurrentSize := Size; FCurrentFormat := 'ico';
+        btnSaveToFile.Enabled := True;
+        SetStatusText(Format('ImageList %d [%d]: %dx%d px | Source bitmap: $%X | ICO',
+          [SourceIndex, TileIndex, Icon.Width, Icon.Height, Offset]));
+      finally Icon.Free; end;
+    finally Images.Free; end;
+  finally Stream.Free; end;
+end;
+
 procedure TfrmMain.lvImagesSelectItem(Sender: TObject; Item: TListItem; Selected: Boolean);
 var
   Idx: Integer;
@@ -546,6 +612,20 @@ begin
     Exit;
   end;
 
+  FCurrentImageListIndex := -1;
+  FCurrentImageListInfo := '';
+  if Item.SubItems.Count = 2 then begin
+    try
+      PreviewImageList(Item);
+    except
+      on E: Exception do begin
+        FCurrentIndex := -1; btnSaveToFile.Enabled := False;
+        imgPreview.Picture := nil;
+        SetStatusText('Cannot load ImageList image: ' + E.Message);
+      end;
+    end;
+    Exit;
+  end;
   Idx := Integer(Item.Data);
   Offset := GetInteger(GetFrxIconOffset, Idx);
   Size := GetInteger(GetFrxIconSize, Idx);
@@ -766,10 +846,38 @@ begin
     Result := 'bin'; // Unknown format
 end;
 
+procedure TfrmMain.SaveCurrentImage(const FileName: string);
+var
+  Input, Output: TFileStream;
+  Images: TFrxImageList;
+  Icon: TIcon;
+  Info: TFrxImageListInfo;
+begin
+  if FCurrentIndex < 0 then Exit;
+  if SameFileName(ExpandFileName(FileName), ExpandFileName(FSourceFile)) then
+    raise EWriteError.Create('Cannot replace the opened executable');
+  Input := TFileStream.Create(FSourceFile, fmOpenRead or fmShareDenyNone);
+  try
+    if FCurrentImageListIndex >= 0 then begin
+      if not ParseFrxImageListInfo(FCurrentImageListInfo, Info) then raise EReadError.Create('Invalid ImageList metadata');
+      Images := TFrxImageList.Create(Input, FCurrentOffset, FCurrentSize, Info);
+      try
+        Icon := Images.Icon(FCurrentImageListIndex);
+        try Icon.SaveToFile(FileName); finally Icon.Free; end;
+      finally Images.Free; end;
+    end else begin
+      if (FCurrentOffset < 0) or (FCurrentSize < 0) or (FCurrentOffset > Input.Size) or
+        (FCurrentSize > Input.Size - FCurrentOffset) then raise EReadError.Create('Image range is outside the file');
+      Output := TFileStream.Create(FileName, fmCreate);
+      try
+        Input.Position := FCurrentOffset; Output.CopyFrom(Input, FCurrentSize);
+      finally Output.Free; end;
+    end;
+  finally Input.Free; end;
+end;
+
 procedure TfrmMain.btnSaveToFileClick(Sender: TObject);
 var
-  FileStream: TFileStream;
-  OutStream: TFileStream;
   DefaultFileName: string;
   FilterIndex: Integer;
   Fmt: string;
@@ -778,6 +886,8 @@ begin
 
   // Generate default filename
   DefaultFileName := Format('Image_%d.%s', [FCurrentIndex, FCurrentFormat]);
+  if FCurrentImageListIndex >= 0 then
+    DefaultFileName := Format('Image_%d_%d.ico', [FCurrentIndex, FCurrentImageListIndex]);
 
   // Set correct filter
   Fmt := LowerCase(FCurrentFormat);
@@ -802,19 +912,8 @@ begin
   if SaveDialog.Execute then
   begin
     try
-      FileStream := TFileStream.Create(FSourceFile, fmOpenRead or fmShareDenyNone);
-      try
-        OutStream := TFileStream.Create(SaveDialog.FileName, fmCreate);
-        try
-          FileStream.Position := FCurrentOffset;
-          OutStream.CopyFrom(FileStream, FCurrentSize);
-          SetStatusText('Saved to: ' + ExtractFileName(SaveDialog.FileName));
-        finally
-          OutStream.Free;
-        end;
-      finally
-        FileStream.Free;
-      end;
+      SaveCurrentImage(SaveDialog.FileName);
+      SetStatusText('Saved to: ' + ExtractFileName(SaveDialog.FileName));
     except
       on E: Exception do
         ShowMessage('Save error: ' + E.Message);

@@ -23,14 +23,13 @@ object frmMain: TfrmMain
     Width = 994
     Height = 21
     Align = alTop
-    Caption = 'FRX Images from VB Decompiler'
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
     Font.Height = -16
     Font.Name = 'Segoe UI'
     Font.Style = [fsBold]
     ParentFont = False
-    ExplicitWidth = 246
+    ExplicitWidth = 4
   end
   object Splitter1: TSplitter
     Left = 250
